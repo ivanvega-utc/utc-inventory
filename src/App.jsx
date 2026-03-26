@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-const DEFAULT_CATEGORIES = ["Event Supplies", "Equipment", "Costumes & Props", "Office", "Marketing & Merch", "Facilities", "Other"];
+const DEFAULT_CATEGORIES = ["Event Supplies", "Equipment", "Costumes & Wardrobe", "Props", "Office & Admin", "Marketing & Merch", "Facilities", "Tools & Hardware", "Furniture", "Cleaning & Supplies", "Kitchenette", "A/V & Tech", "Safety & First Aid", "Signage & Displays", "Dressing Room", "Other"];
 
 const CATEGORY_COLORS = {
   "Event Supplies": "#2a6b4a",
