@@ -2,8 +2,6 @@ const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE_ID = process.env.AIRTABLE_BASE_ID;
 const TABLE_NAME = "Items";
 const CLOUDINARY_CLOUD = process.env.CLOUDINARY_CLOUD;
-const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY;
-const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -36,12 +34,9 @@ export default async function handler(req, res) {
     if (req.method === "POST") {
       const { fields, photoFile } = req.body;
 
-      // Upload photo to Cloudinary first if provided
       if (photoFile) {
         const photoUrl = await uploadToCloudinary(photoFile);
-        if (photoUrl) {
-          fields.Photo = [{ url: photoUrl }];
-        }
+        if (photoUrl) fields.Photo = [{ url: photoUrl }];
       }
 
       const response = await fetch(base, {
@@ -59,9 +54,7 @@ export default async function handler(req, res) {
 
       if (photoFile) {
         const photoUrl = await uploadToCloudinary(photoFile);
-        if (photoUrl) {
-          fields.Photo = [{ url: photoUrl }];
-        }
+        if (photoUrl) fields.Photo = [{ url: photoUrl }];
       }
 
       const response = await fetch(`${base}/${id}`, {
@@ -89,20 +82,9 @@ export default async function handler(req, res) {
 
 async function uploadToCloudinary(base64Image) {
   try {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const params = `timestamp=${timestamp}${CLOUDINARY_API_SECRET}`;
-    
-    // Generate SHA1 signature
-    const msgBuffer = new TextEncoder().encode(params);
-    const hashBuffer = await crypto.subtle.digest("SHA-1", msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const signature = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-
     const formData = new FormData();
     formData.append("file", base64Image);
-    formData.append("api_key", CLOUDINARY_API_KEY);
-    formData.append("timestamp", timestamp);
-    formData.append("signature", signature);
+    formData.append("upload_preset", "utc-inventory");
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`,
@@ -112,9 +94,7 @@ async function uploadToCloudinary(base64Image) {
     const data = await response.json();
     console.log("Cloudinary response:", JSON.stringify(data));
 
-    if (data.secure_url) {
-      return data.secure_url;
-    }
+    if (data.secure_url) return data.secure_url;
     return null;
   } catch (e) {
     console.error("Cloudinary upload error:", e);
