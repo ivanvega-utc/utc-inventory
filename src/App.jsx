@@ -258,7 +258,7 @@ function EditModal({ item, onClose, onSave, onDelete, allCategories, onAddCatego
           <input ref={galleryRef} type="file" accept="image/*" onChange={handlePhoto} style={{ display: "none" }} />
         </div>
 
-        {[["name", "Item Name *", "e.g. Gala swag bags"], ["location", "Where Is It? *", "e.g. Storage Room B, back shelf"]].map(([field, label, placeholder]) => (
+        {[["name", "Item Name *", "e.g. Gala swag bags"], ["location", "Where Is It? *", "e.g. Kitchette, Downstairs, Closet, Back Room, Attic"]].map(([field, label, placeholder]) => (
           <div key={field} style={{ marginBottom: "14px" }}>
             <label style={{ display: "block", color: t.textSub, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px", fontFamily: "monospace" }}>{label}</label>
             <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} placeholder={placeholder} style={inputStyle} />
@@ -548,7 +548,7 @@ export default function App() {
           {/* Controls row */}
           <div style={{ display: "flex", gap: "6px", marginBottom: "10px", alignItems: "center" }}>
             {/* Sort */}
-            {[["name", "A–Z"], ["recent", "Recent"], ["uncertain", "⚠️"]].map(([val, label]) => (
+            {[["name", "A–Z"], ["recent", "Recent"], ["uncertain", "Flagged"]].map(([val, label]) => (
               <button key={val} onClick={() => setSortBy(val)} style={{ background: sortBy === val ? t.accent : "transparent", border: `1px solid ${sortBy === val ? t.accent : t.border}`, color: sortBy === val ? "#fff" : t.textMuted, padding: "5px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: sortBy === val ? 600 : 400 }}>{label}</button>
             ))}
             <div style={{ flex: 1 }} />
