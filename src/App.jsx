@@ -28,7 +28,6 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 365)}y ago`;
 }
 
-// Convert Airtable record to app item
 function recordToItem(record) {
   const f = record.fields;
   return {
@@ -48,13 +47,7 @@ function recordToItem(record) {
 function Toast({ message, error }) {
   if (!message) return null;
   return (
-    <div style={{
-      position: "fixed", bottom: "88px", left: "50%", transform: "translateX(-50%)",
-      background: error ? "#3a1e1e" : "#1e3a1e",
-      border: `1px solid ${error ? "#7a4a4a" : "#4a7a4a"}`,
-      color: error ? "#d8a8a8" : "#a8d8a8",
-      padding: "10px 22px", borderRadius: "8px", fontSize: "14px", zIndex: 300, whiteSpace: "nowrap"
-    }}>
+    <div style={{ position: "fixed", bottom: "88px", left: "50%", transform: "translateX(-50%)", background: error ? "#3a1e1e" : "#1e3a1e", border: `1px solid ${error ? "#7a4a4a" : "#4a7a4a"}`, color: error ? "#d8a8a8" : "#a8d8a8", padding: "10px 22px", borderRadius: "8px", fontSize: "14px", zIndex: 300, whiteSpace: "nowrap" }}>
       {message}
     </div>
   );
@@ -70,7 +63,66 @@ function PhotoViewer({ src, onClose }) {
   );
 }
 
-function Modal({ item, onClose, onSave, onDelete, allCategories, onAddCategory }) {
+// VIEW modal - read only
+function ViewModal({ item, onClose, onEdit }) {
+  const color = getCategoryColor(item.category);
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(10,8,6,0.85)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }}>
+      <div style={{ background: "#16120e", borderTop: "2px solid #c8622a", borderRadius: "16px 16px 0 0", width: "100%", maxWidth: "640px", padding: "20px 20px 36px", maxHeight: "94vh", overflowY: "auto" }}>
+        <div style={{ width: "36px", height: "4px", background: "#3a2e20", borderRadius: "2px", margin: "0 auto 18px" }} />
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+          <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#f0e6d3", fontSize: "20px", margin: 0, fontWeight: 700 }}>Item Details</h2>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#6a5848", fontSize: "24px", cursor: "pointer" }}>×</button>
+        </div>
+
+        {/* Photo */}
+        {item.photo && (
+          <div style={{ marginBottom: "20px", borderRadius: "10px", overflow: "hidden", border: "1px solid #2e2416" }}>
+            <img src={item.photo} alt="Location" style={{ width: "100%", maxHeight: "260px", objectFit: "cover", display: "block" }} />
+          </div>
+        )}
+
+        {/* Name and category */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "16px" }}>
+          <h3 style={{ color: "#f0e6d3", fontSize: "22px", margin: 0, fontWeight: 700 }}>{item.name}</h3>
+          <span style={{ background: color + "30", border: `1px solid ${color}55`, color: "#b8a070", fontSize: "11px", padding: "3px 10px", borderRadius: "10px" }}>{item.category}</span>
+          {item.uncertain && <span style={{ background: "#6b3a1030", border: "1px solid #6b3a10", color: "#f0c070", fontSize: "11px", padding: "3px 10px", borderRadius: "10px" }}>⚠️ Unconfirmed</span>}
+        </div>
+
+        {/* Location */}
+        <div style={{ background: "#0f0c09", border: "1px solid #2e2416", borderRadius: "10px", padding: "14px 16px", marginBottom: "12px" }}>
+          <div style={{ color: "#b8a898", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "monospace", marginBottom: "6px" }}>Location</div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+            <span style={{ fontSize: "16px", flexShrink: 0 }}>📍</span>
+            <span style={{ color: "#c8622a", fontSize: "16px", fontWeight: 600, lineHeight: 1.4 }}>{item.location}</span>
+          </div>
+        </div>
+
+        {/* Notes */}
+        {item.notes && (
+          <div style={{ background: "#0f0c09", border: "1px solid #2e2416", borderRadius: "10px", padding: "14px 16px", marginBottom: "12px" }}>
+            <div style={{ color: "#b8a898", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "monospace", marginBottom: "6px" }}>Notes</div>
+            <div style={{ color: "#c8b898", fontSize: "15px", lineHeight: 1.5 }}>{item.notes}</div>
+          </div>
+        )}
+
+        {/* Last updated */}
+        <div style={{ color: "#4a3a28", fontSize: "12px", marginBottom: "24px", textAlign: "right" }}>
+          Last updated by {item.updatedBy} · {timeAgo(item.updatedAt)}
+        </div>
+
+        {/* Edit button */}
+        <button onClick={onEdit} style={{ width: "100%", background: "#c8622a", border: "none", color: "#fff", padding: "14px", borderRadius: "8px", cursor: "pointer", fontSize: "16px", fontWeight: 600 }}>
+          ✏️ Edit This Item
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// EDIT modal
+function EditModal({ item, onClose, onSave, onDelete, allCategories, onAddCategory }) {
   const [form, setForm] = useState(item || { name: "", category: allCategories[0] || "Event Supplies", location: "", notes: "", updatedBy: "", uncertain: false });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(item?.photo || null);
@@ -78,7 +130,8 @@ function Modal({ item, onClose, onSave, onDelete, allCategories, onAddCategory }
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCatInput, setNewCatInput] = useState("");
-  const fileRef = useRef();
+  const cameraRef = useRef();
+  const galleryRef = useRef();
   const isNew = !item?.id;
 
   function handlePhoto(e) {
@@ -93,7 +146,8 @@ function Modal({ item, onClose, onSave, onDelete, allCategories, onAddCategory }
   function removePhoto() {
     setPhotoFile(null);
     setPhotoPreview(null);
-    if (fileRef.current) fileRef.current.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
+    if (galleryRef.current) galleryRef.current.value = "";
   }
 
   function handleAddCategory() {
@@ -125,7 +179,7 @@ function Modal({ item, onClose, onSave, onDelete, allCategories, onAddCategory }
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#6a5848", fontSize: "24px", cursor: "pointer" }}>×</button>
         </div>
 
-        {/* Photo */}
+        {/* Photo - with separate camera and gallery buttons */}
         <div style={{ marginBottom: "18px" }}>
           <label style={{ display: "block", color: "#b8a898", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px", fontFamily: "monospace" }}>
             Location Photo <span style={{ color: "#5a4a38", textTransform: "none", letterSpacing: 0 }}>(optional but super helpful)</span>
@@ -134,49 +188,53 @@ function Modal({ item, onClose, onSave, onDelete, allCategories, onAddCategory }
             <div style={{ position: "relative", borderRadius: "8px", overflow: "hidden", border: "1px solid #2e2416" }}>
               <img src={photoPreview} alt="Preview" style={{ width: "100%", maxHeight: "200px", objectFit: "cover", display: "block" }} />
               <div style={{ position: "absolute", top: "8px", right: "8px", display: "flex", gap: "6px" }}>
-                <button onClick={() => fileRef.current?.click()} style={{ background: "rgba(0,0,0,0.75)", border: "1px solid #4a3a20", color: "#f0e6d3", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>Replace</button>
+                <button onClick={() => galleryRef.current?.click()} style={{ background: "rgba(0,0,0,0.75)", border: "1px solid #4a3a20", color: "#f0e6d3", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>Replace</button>
                 <button onClick={removePhoto} style={{ background: "rgba(80,20,20,0.85)", border: "1px solid #6b2a2a", color: "#d97474", padding: "6px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>Remove</button>
               </div>
             </div>
           ) : (
-            <div onClick={() => fileRef.current?.click()}
-              style={{ border: "1.5px dashed #3a2e20", borderRadius: "8px", padding: "26px 16px", textAlign: "center", cursor: "pointer", color: "#6a5848" }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = "#c8622a"}
-              onMouseLeave={e => e.currentTarget.style.borderColor = "#3a2e20"}
-            >
-              <div style={{ fontSize: "30px", marginBottom: "8px" }}>📸</div>
-              <div style={{ fontSize: "13px" }}>Take a photo or upload one</div>
-              <div style={{ fontSize: "11px", marginTop: "4px", color: "#4a3a28" }}>Show exactly where it lives</div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              {/* Take photo with camera */}
+              <div onClick={() => cameraRef.current?.click()}
+                style={{ flex: 1, border: "1.5px dashed #3a2e20", borderRadius: "8px", padding: "20px 12px", textAlign: "center", cursor: "pointer", color: "#6a5848" }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = "#c8622a"}
+                onMouseLeave={e => e.currentTarget.style.borderColor = "#3a2e20"}
+              >
+                <div style={{ fontSize: "26px", marginBottom: "6px" }}>📷</div>
+                <div style={{ fontSize: "12px" }}>Take Photo</div>
+              </div>
+              {/* Choose from library */}
+              <div onClick={() => galleryRef.current?.click()}
+                style={{ flex: 1, border: "1.5px dashed #3a2e20", borderRadius: "8px", padding: "20px 12px", textAlign: "center", cursor: "pointer", color: "#6a5848" }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = "#c8622a"}
+                onMouseLeave={e => e.currentTarget.style.borderColor = "#3a2e20"}
+              >
+                <div style={{ fontSize: "26px", marginBottom: "6px" }}>🖼️</div>
+                <div style={{ fontSize: "12px" }}>Photo Library</div>
+              </div>
             </div>
           )}
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{ display: "none" }} />
+          {/* Camera input */}
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{ display: "none" }} />
+          {/* Gallery input - no capture attribute so it opens library */}
+          <input ref={galleryRef} type="file" accept="image/*" onChange={handlePhoto} style={{ display: "none" }} />
         </div>
 
         {/* Fields */}
-        {[["name", "Item Name *", "e.g. Gala swag bags"], ["location", "Where Is It? *", "e.g. Storage Room B, back shelf, left side"]].map(([field, label, placeholder]) => (
+        {[["name", "Item Name *", "e.g. Gala swag bags"], ["location", "Where Is It? *", "e.g. Storage Room B, back shelf"]].map(([field, label, placeholder]) => (
           <div key={field} style={{ marginBottom: "14px" }}>
             <label style={{ display: "block", color: "#b8a898", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px", fontFamily: "monospace" }}>{label}</label>
-            <input
-              value={form[field]}
-              onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-              placeholder={placeholder}
-              style={{ width: "100%", background: "#0f0c09", border: "1px solid #2e2416", borderRadius: "6px", padding: "12px", color: "#f0e6d3", fontSize: "15px", fontFamily: "inherit", boxSizing: "border-box" }}
-            />
+            <input value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} placeholder={placeholder}
+              style={{ width: "100%", background: "#0f0c09", border: "1px solid #2e2416", borderRadius: "6px", padding: "12px", color: "#f0e6d3", fontSize: "15px", fontFamily: "inherit", boxSizing: "border-box" }} />
           </div>
         ))}
 
-        {/* Your Name with Ivan easter egg */}
         <div style={{ marginBottom: "14px" }}>
           <label style={{ display: "block", color: "#b8a898", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px", fontFamily: "monospace" }}>Your Name *</label>
-          <input
-            value={form.updatedBy}
-            onChange={e => setForm(f => ({ ...f, updatedBy: e.target.value }))}
-            placeholder="e.g. Ivan (he knows where everything is anyway)"
-            style={{ width: "100%", background: "#0f0c09", border: "1px solid #2e2416", borderRadius: "6px", padding: "12px", color: "#f0e6d3", fontSize: "15px", fontFamily: "inherit", boxSizing: "border-box" }}
-          />
+          <input value={form.updatedBy} onChange={e => setForm(f => ({ ...f, updatedBy: e.target.value }))} placeholder="e.g. Ivan (he knows where everything is anyway)"
+            style={{ width: "100%", background: "#0f0c09", border: "1px solid #2e2416", borderRadius: "6px", padding: "12px", color: "#f0e6d3", fontSize: "15px", fontFamily: "inherit", boxSizing: "border-box" }} />
         </div>
 
-        {/* Category */}
         <div style={{ marginBottom: "14px" }}>
           <label style={{ display: "block", color: "#b8a898", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px", fontFamily: "monospace" }}>Category</label>
           {showNewCat ? (
@@ -184,7 +242,7 @@ function Modal({ item, onClose, onSave, onDelete, allCategories, onAddCategory }
               <input autoFocus value={newCatInput} onChange={e => setNewCatInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddCategory()} placeholder="New category name..."
                 style={{ flex: 1, background: "#0f0c09", border: "1px solid #c8622a", borderRadius: "6px", padding: "12px", color: "#f0e6d3", fontSize: "15px", fontFamily: "inherit" }} />
               <button onClick={handleAddCategory} style={{ background: "#c8622a", border: "none", color: "#fff", padding: "12px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "14px", fontWeight: 600 }}>Add</button>
-              <button onClick={() => { setShowNewCat(false); setNewCatInput(""); }} style={{ background: "transparent", border: "1px solid #3a2e20", color: "#7a6858", padding: "12px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "14px" }}>✕</button>
+              <button onClick={() => { setShowNewCat(false); setNewCatInput(""); }} style={{ background: "transparent", border: "1px solid #3a2e20", color: "#7a6858", padding: "12px 14px", borderRadius: "6px", cursor: "pointer" }}>✕</button>
             </div>
           ) : (
             <div style={{ display: "flex", gap: "8px" }}>
@@ -192,22 +250,18 @@ function Modal({ item, onClose, onSave, onDelete, allCategories, onAddCategory }
                 style={{ flex: 1, background: "#0f0c09", border: "1px solid #2e2416", borderRadius: "6px", padding: "12px", color: "#f0e6d3", fontSize: "15px", fontFamily: "inherit" }}>
                 {allCategories.map(c => <option key={c}>{c}</option>)}
               </select>
-              <button onClick={() => setShowNewCat(true)} title="Add new category"
-                style={{ background: "#1a1410", border: "1px solid #3a2e20", color: "#c8622a", padding: "12px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "18px", flexShrink: 0 }}>+</button>
+              <button onClick={() => setShowNewCat(true)} style={{ background: "#1a1410", border: "1px solid #3a2e20", color: "#c8622a", padding: "12px 14px", borderRadius: "6px", cursor: "pointer", fontSize: "18px", flexShrink: 0 }}>+</button>
             </div>
           )}
           <div style={{ color: "#4a3a28", fontSize: "11px", marginTop: "5px" }}>Tap + to create a custom category</div>
         </div>
 
-        {/* Notes */}
         <div style={{ marginBottom: "16px" }}>
           <label style={{ display: "block", color: "#b8a898", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "6px", fontFamily: "monospace" }}>Notes</label>
-          <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-            placeholder="Quantity, condition, color, anything that helps someone find it fast..."
-            rows={3} style={{ width: "100%", background: "#0f0c09", border: "1px solid #2e2416", borderRadius: "6px", padding: "12px", color: "#f0e6d3", fontSize: "15px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }} />
+          <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Quantity, condition, color, anything that helps someone find it fast..." rows={3}
+            style={{ width: "100%", background: "#0f0c09", border: "1px solid #2e2416", borderRadius: "6px", padding: "12px", color: "#f0e6d3", fontSize: "15px", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }} />
         </div>
 
-        {/* Uncertain toggle */}
         <div onClick={() => setForm(f => ({ ...f, uncertain: !f.uncertain }))}
           style={{ display: "flex", alignItems: "center", gap: "12px", background: form.uncertain ? "#3a2010" : "#0f0c09", border: `1px solid ${form.uncertain ? "#c8622a" : "#2e2416"}`, borderRadius: "8px", padding: "12px 14px", cursor: "pointer", marginBottom: "24px" }}>
           <div style={{ width: "20px", height: "20px", borderRadius: "4px", border: `2px solid ${form.uncertain ? "#c8622a" : "#4a3a20"}`, background: form.uncertain ? "#c8622a" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -219,7 +273,6 @@ function Modal({ item, onClose, onSave, onDelete, allCategories, onAddCategory }
           </div>
         </div>
 
-        {/* Actions */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <button onClick={handleSave} disabled={!valid || saving}
             style={{ width: "100%", background: valid ? "#c8622a" : "#2a1a0a", border: "none", color: valid ? "#fff" : "#5a3a1a", padding: "14px", borderRadius: "8px", cursor: valid ? "pointer" : "default", fontSize: "16px", fontWeight: 600 }}>
@@ -241,10 +294,13 @@ function Modal({ item, onClose, onSave, onDelete, allCategories, onAddCategory }
   );
 }
 
-function ItemCard({ item, onEdit, onPhotoView }) {
+function ItemCard({ item, onClick }) {
   const color = getCategoryColor(item.category);
   return (
-    <div style={{ background: item.uncertain ? "#1a1008" : "#12100d", border: `1px solid ${item.uncertain ? "#6b3a10" : "#2a2010"}`, borderRadius: "12px", overflow: "hidden" }}>
+    <div onClick={onClick} style={{ background: item.uncertain ? "#1a1008" : "#12100d", border: `1px solid ${item.uncertain ? "#6b3a10" : "#2a2010"}`, borderRadius: "12px", overflow: "hidden", cursor: "pointer" }}
+      onMouseEnter={e => e.currentTarget.style.borderColor = "#c8622a"}
+      onMouseLeave={e => e.currentTarget.style.borderColor = item.uncertain ? "#6b3a10" : "#2a2010"}
+    >
       {item.uncertain && (
         <div style={{ background: "#6b3a10", padding: "6px 14px", display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ fontSize: "13px" }}>⚠️</span>
@@ -252,16 +308,12 @@ function ItemCard({ item, onEdit, onPhotoView }) {
         </div>
       )}
       {item.photoThumb && (
-        <div onClick={() => onPhotoView(item.photo)} style={{ position: "relative", height: "150px", overflow: "hidden", cursor: "pointer" }}>
+        <div style={{ position: "relative", height: "150px", overflow: "hidden" }}>
           <img src={item.photoThumb} alt="Location" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, rgba(18,16,13,0.9) 100%)" }} />
-          <div style={{ position: "absolute", bottom: "8px", right: "10px", background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.1)", color: "#d0c0a8", fontSize: "11px", padding: "3px 9px", borderRadius: "10px" }}>📸 Enlarge</div>
         </div>
       )}
-      <div onClick={onEdit} style={{ padding: "14px 16px", cursor: "pointer" }}
-        onMouseEnter={e => e.currentTarget.parentElement.style.borderColor = "#c8622a"}
-        onMouseLeave={e => e.currentTarget.parentElement.style.borderColor = item.uncertain ? "#6b3a10" : "#2a2010"}
-      >
+      <div style={{ padding: "14px 16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "6px" }}>
@@ -280,7 +332,7 @@ function ItemCard({ item, onEdit, onPhotoView }) {
           </div>
         </div>
         <div style={{ marginTop: "10px", borderTop: "1px solid #1e1a12", paddingTop: "8px", display: "flex", justifyContent: "flex-end" }}>
-          <span style={{ color: "#4a3a28", fontSize: "12px" }}>✏️ Tap to edit or update</span>
+          <span style={{ color: "#4a3a28", fontSize: "12px" }}>👁 Tap to view</span>
         </div>
       </div>
     </div>
@@ -295,7 +347,8 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [sortBy, setSortBy] = useState("name");
-  const [modal, setModal] = useState(null);
+  const [viewItem, setViewItem] = useState(null);
+  const [editItem, setEditItem] = useState(null);
   const [photoView, setPhotoView] = useState(null);
   const [toast, setToast] = useState({ message: "", error: false });
 
@@ -308,7 +361,6 @@ export default function App() {
       if (data.records) {
         const mapped = data.records.map(recordToItem);
         setItems(mapped);
-        // Extract any custom categories from existing records
         const existingCats = [...new Set(mapped.map(i => i.category).filter(Boolean))];
         const merged = [...new Set([...DEFAULT_CATEGORIES, ...existingCats])];
         setCategories(merged);
@@ -336,36 +388,26 @@ export default function App() {
         Uncertain: form.uncertain,
       };
 
-      // Handle photo upload if new file selected
-      if (photoFile) {
-        // Convert to base64 for Airtable attachment
-        const base64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = e => resolve(e.target.result);
-          reader.readAsDataURL(photoFile);
-        });
-        fields.Photo = [{ url: base64 }];
-      }
-
       let res, data;
       if (existingId) {
         res = await fetch("/api/items", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: existingId, fields }),
+          body: JSON.stringify({ id: existingId, fields, photoFile: photoFile ? await fileToBase64(photoFile) : null }),
         });
       } else {
         res = await fetch("/api/items", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fields }),
+          body: JSON.stringify({ fields, photoFile: photoFile ? await fileToBase64(photoFile) : null }),
         });
       }
       data = await res.json();
 
       if (data.id) {
         await loadItems();
-        setModal(null);
+        setEditItem(null);
+        setViewItem(null);
         showToast(existingId ? "Item updated." : "Item added to inventory.");
       } else {
         showToast("Something went wrong. Try again.", true);
@@ -375,11 +417,20 @@ export default function App() {
     }
   }
 
+  async function fileToBase64(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function handleDelete(id) {
     try {
       await fetch(`/api/items?id=${id}`, { method: "DELETE" });
       await loadItems();
-      setModal(null);
+      setEditItem(null);
+      setViewItem(null);
       showToast("Item removed.");
     } catch (e) {
       showToast("Error deleting item.", true);
@@ -413,7 +464,6 @@ export default function App() {
     <div style={{ minHeight: "100vh", background: "#0a0806", fontFamily: "'DM Sans', 'Segoe UI', sans-serif", color: "#f0e6d3" }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
 
-      {/* Header */}
       <div style={{ background: "linear-gradient(180deg, #1c1408 0%, #0f0c09 100%)", borderBottom: "1px solid #2a2010", padding: "20px 16px 0" }}>
         <div style={{ maxWidth: "680px", margin: "0 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
@@ -421,13 +471,10 @@ export default function App() {
               <div style={{ fontSize: "10px", color: "#c8622a", letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 600, marginBottom: "3px" }}>UrbanTheater Company</div>
               <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(24px, 5vw, 32px)", fontWeight: 900, color: "#f0e6d3", margin: 0, lineHeight: 1.1 }}>Where Is It?</h1>
               <div style={{ color: "#4a3a28", fontSize: "12px", marginTop: "5px", display: "flex", gap: "10px" }}>
-                {loaded && <>
-                  <span>{items.length} items</span>
-                  {uncertainCount > 0 && <span style={{ color: "#c87030" }}>⚠️ {uncertainCount} unconfirmed</span>}
-                </>}
+                {loaded && <><span>{items.length} items</span>{uncertainCount > 0 && <span style={{ color: "#c87030" }}>⚠️ {uncertainCount} unconfirmed</span>}</>}
               </div>
             </div>
-            <button onClick={() => setModal("new")} style={{ background: "#c8622a", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "8px", cursor: "pointer", fontSize: "14px", fontWeight: 600, flexShrink: 0, marginTop: "6px" }}>
+            <button onClick={() => setEditItem("new")} style={{ background: "#c8622a", border: "none", color: "#fff", padding: "10px 18px", borderRadius: "8px", cursor: "pointer", fontSize: "14px", fontWeight: 600, flexShrink: 0, marginTop: "6px" }}>
               + Add Item
             </button>
           </div>
@@ -441,24 +488,13 @@ export default function App() {
 
           <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
             {[["name", "A–Z"], ["recent", "Recent"], ["uncertain", "Unconfirmed"]].map(([val, label]) => (
-              <button key={val} onClick={() => setSortBy(val)} style={{
-                background: sortBy === val ? "#2a1e10" : "transparent",
-                border: `1px solid ${sortBy === val ? "#c8622a" : "#2a2010"}`,
-                color: sortBy === val ? "#c8622a" : "#6a5848",
-                padding: "5px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: sortBy === val ? 600 : 400
-              }}>{label}</button>
+              <button key={val} onClick={() => setSortBy(val)} style={{ background: sortBy === val ? "#2a1e10" : "transparent", border: `1px solid ${sortBy === val ? "#c8622a" : "#2a2010"}`, color: sortBy === val ? "#c8622a" : "#6a5848", padding: "5px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: sortBy === val ? 600 : 400 }}>{label}</button>
             ))}
           </div>
 
           <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "12px" }}>
             {allCats.map(cat => (
-              <button key={cat} onClick={() => setActiveCategory(cat)} style={{
-                background: activeCategory === cat ? "#c8622a" : "#1a1410",
-                border: `1px solid ${activeCategory === cat ? "#c8622a" : "#2a2010"}`,
-                color: activeCategory === cat ? "#fff" : "#7a6858",
-                padding: "6px 12px", borderRadius: "20px", cursor: "pointer", fontSize: "12px", fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0,
-                display: "flex", alignItems: "center", gap: "5px"
-              }}>
+              <button key={cat} onClick={() => setActiveCategory(cat)} style={{ background: activeCategory === cat ? "#c8622a" : "#1a1410", border: `1px solid ${activeCategory === cat ? "#c8622a" : "#2a2010"}`, color: activeCategory === cat ? "#fff" : "#7a6858", padding: "6px 12px", borderRadius: "20px", cursor: "pointer", fontSize: "12px", fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0, display: "flex", alignItems: "center", gap: "5px" }}>
                 {cat}
                 <span style={{ background: activeCategory === cat ? "rgba(255,255,255,0.2)" : "#2a2010", borderRadius: "10px", padding: "1px 6px", fontSize: "10px" }}>{countFor(cat)}</span>
               </button>
@@ -467,19 +503,11 @@ export default function App() {
         </div>
       </div>
 
-      {/* Items */}
       <div style={{ maxWidth: "680px", margin: "0 auto", padding: "16px 16px 110px" }}>
         {!loaded ? (
-          <div style={{ textAlign: "center", padding: "60px 0", color: "#4a3a28" }}>
-            <div style={{ fontSize: "32px", marginBottom: "12px" }}>⏳</div>
-            <div>Loading inventory...</div>
-          </div>
+          <div style={{ textAlign: "center", padding: "60px 0", color: "#4a3a28" }}><div style={{ fontSize: "32px", marginBottom: "12px" }}>⏳</div><div>Loading inventory...</div></div>
         ) : loadError ? (
-          <div style={{ textAlign: "center", padding: "60px 0", color: "#8a4a38" }}>
-            <div style={{ fontSize: "32px", marginBottom: "12px" }}>⚠️</div>
-            <div>Could not connect to Airtable.</div>
-            <div style={{ fontSize: "13px", marginTop: "8px", color: "#5a3a28" }}>Check your environment variables and try redeploying.</div>
-          </div>
+          <div style={{ textAlign: "center", padding: "60px 0", color: "#8a4a38" }}><div style={{ fontSize: "32px", marginBottom: "12px" }}>⚠️</div><div>Could not connect to Airtable.</div></div>
         ) : sorted.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0", color: "#5a4a38" }}>
             <div style={{ fontSize: "36px", marginBottom: "12px" }}>📦</div>
@@ -489,22 +517,33 @@ export default function App() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {sorted.map(item => <ItemCard key={item.id} item={item} onEdit={() => setModal(item)} onPhotoView={setPhotoView} />)}
+            {sorted.map(item => <ItemCard key={item.id} item={item} onClick={() => setViewItem(item)} />)}
             <div style={{ textAlign: "center", color: "#3a2e20", fontSize: "12px", marginTop: "6px" }}>Showing {sorted.length} of {items.length} items</div>
           </div>
         )}
       </div>
 
       <div style={{ position: "fixed", bottom: "28px", right: "20px", zIndex: 100 }}>
-        <button onClick={() => setModal("new")} style={{ background: "#c8622a", border: "none", color: "#fff", width: "56px", height: "56px", borderRadius: "50%", fontSize: "28px", cursor: "pointer", boxShadow: "0 4px 24px rgba(200,98,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+        <button onClick={() => setEditItem("new")} style={{ background: "#c8622a", border: "none", color: "#fff", width: "56px", height: "56px", borderRadius: "50%", fontSize: "28px", cursor: "pointer", boxShadow: "0 4px 24px rgba(200,98,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
       </div>
 
       <Toast message={toast.message} error={toast.error} />
       {photoView && <PhotoViewer src={photoView} onClose={() => setPhotoView(null)} />}
-      {modal && (
-        <Modal
-          item={modal === "new" ? null : modal}
-          onClose={() => setModal(null)}
+
+      {/* View modal */}
+      {viewItem && !editItem && (
+        <ViewModal
+          item={viewItem}
+          onClose={() => setViewItem(null)}
+          onEdit={() => setEditItem(viewItem)}
+        />
+      )}
+
+      {/* Edit modal */}
+      {editItem && (
+        <EditModal
+          item={editItem === "new" ? null : editItem}
+          onClose={() => { setEditItem(null); }}
           onSave={handleSave}
           onDelete={handleDelete}
           allCategories={categories}
