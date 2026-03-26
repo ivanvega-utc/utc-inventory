@@ -1,6 +1,9 @@
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE_ID = process.env.AIRTABLE_BASE_ID;
 const TABLE_NAME = "Items";
+const CLOUDINARY_CLOUD = process.env.CLOUDINARY_CLOUD;
+const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY;
+const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -33,28 +36,33 @@ export default async function handler(req, res) {
     if (req.method === "POST") {
       const { fields, photoFile } = req.body;
 
-      // First create the record without photo
+      // Upload photo to Cloudinary first if provided
+      if (photoFile) {
+        const photoUrl = await uploadToCloudinary(photoFile);
+        if (photoUrl) {
+          fields.Photo = [{ url: photoUrl }];
+        }
+      }
+
       const response = await fetch(base, {
         method: "POST",
         headers,
         body: JSON.stringify({ fields }),
       });
       const data = await response.json();
-
-      // If we have a photo and record was created, upload photo separately
-      if (photoFile && data.id) {
-        await uploadPhotoToRecord(data.id, photoFile, base, headers);
-        // Fetch the updated record
-        const updated = await fetch(`${base}/${data.id}`, { headers });
-        const updatedData = await updated.json();
-        return res.status(200).json(updatedData);
-      }
-
+      console.log("POST response:", JSON.stringify(data));
       return res.status(200).json(data);
     }
 
     if (req.method === "PATCH") {
       const { id, fields, photoFile } = req.body;
+
+      if (photoFile) {
+        const photoUrl = await uploadToCloudinary(photoFile);
+        if (photoUrl) {
+          fields.Photo = [{ url: photoUrl }];
+        }
+      }
 
       const response = await fetch(`${base}/${id}`, {
         method: "PATCH",
@@ -62,14 +70,6 @@ export default async function handler(req, res) {
         body: JSON.stringify({ fields }),
       });
       const data = await response.json();
-
-      if (photoFile && data.id) {
-        await uploadPhotoToRecord(data.id, photoFile, base, headers);
-        const updated = await fetch(`${base}/${data.id}`, { headers });
-        const updatedData = await updated.json();
-        return res.status(200).json(updatedData);
-      }
-
       return res.status(200).json(data);
     }
 
@@ -87,45 +87,37 @@ export default async function handler(req, res) {
   }
 }
 
-async function uploadPhotoToRecord(recordId, photoBase64, base, headers) {
+async function uploadToCloudinary(base64Image) {
   try {
-    // Extract mime type and base64 data
-    const matches = photoBase64.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
-    if (!matches) return;
-
-    const mimeType = matches[1];
-    const base64Data = matches[2];
-
-    // Convert base64 to binary
-    const binaryStr = atob(base64Data);
-    const bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
-    }
-
-    // Get file extension from mime type
-    const ext = mimeType.split("/")[1] || "jpg";
-    const filename = `photo.${ext}`;
-
-    // Upload directly to Airtable attachment upload endpoint
-    const uploadUrl = `https://content.airtable.com/v0/${BASE_ID}/${recordId}/Photo/uploadAttachment`;
+    const timestamp = Math.floor(Date.now() / 1000);
+    const params = `timestamp=${timestamp}${CLOUDINARY_API_SECRET}`;
+    
+    // Generate SHA1 signature
+    const msgBuffer = new TextEncoder().encode(params);
+    const hashBuffer = await crypto.subtle.digest("SHA-1", msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const signature = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 
     const formData = new FormData();
-    const blob = new Blob([bytes], { type: mimeType });
-    formData.append("file", blob, filename);
+    formData.append("file", base64Image);
+    formData.append("api_key", CLOUDINARY_API_KEY);
+    formData.append("timestamp", timestamp);
+    formData.append("signature", signature);
 
-    const uploadResponse = await fetch(uploadUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${AIRTABLE_TOKEN}`,
-      },
-      body: formData,
-    });
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`,
+      { method: "POST", body: formData }
+    );
 
-    const uploadData = await uploadResponse.json();
-    console.log("Photo upload result:", JSON.stringify(uploadData));
-    return uploadData;
+    const data = await response.json();
+    console.log("Cloudinary response:", JSON.stringify(data));
+
+    if (data.secure_url) {
+      return data.secure_url;
+    }
+    return null;
   } catch (e) {
-    console.error("Photo upload error:", e);
+    console.error("Cloudinary upload error:", e);
+    return null;
   }
 }
