@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  const base = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_NAME}`;
+  const base = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
   const headers = {
     Authorization: `Bearer ${AIRTABLE_TOKEN}`,
     "Content-Type": "application/json",
@@ -23,6 +23,10 @@ export default async function handler(req, res) {
         const url = offset ? `${base}?offset=${offset}` : base;
         const response = await fetch(url, { headers });
         const data = await response.json();
+        if (data.error) {
+          console.error("Airtable GET error:", JSON.stringify(data));
+          return res.status(400).json(data);
+        }
         if (data.records) allRecords = [...allRecords, ...data.records];
         offset = data.offset || null;
       } while (offset);
@@ -30,21 +34,27 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      const { fields } = req.body;
+      const { Photo, ...safeFields } = fields;
+      const payload = { fields: safeFields };
+      console.log("POST payload:", JSON.stringify(payload));
       const response = await fetch(base, {
         method: "POST",
         headers,
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
+      console.log("Airtable POST response:", JSON.stringify(data));
       return res.status(200).json(data);
     }
 
     if (req.method === "PATCH") {
-      const { id, ...body } = req.body;
+      const { id, fields } = req.body;
+      const { Photo, ...safeFields } = fields;
       const response = await fetch(`${base}/${id}`, {
         method: "PATCH",
         headers,
-        body: JSON.stringify(body),
+        body: JSON.stringify({ fields: safeFields }),
       });
       const data = await response.json();
       return res.status(200).json(data);
@@ -62,6 +72,7 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch (err) {
+    console.error("Handler error:", err);
     return res.status(500).json({ error: err.message });
   }
 }
